@@ -214,8 +214,37 @@ namespace Rtsp
         /// <summary>
         /// Write to the RTP Data Port
         /// </summary>
-        public void Write_To_Data_Port(byte[] data, String hostname, int port) {
-            data_socket.Send(data,data.Length, hostname, port);
+        public void Write_To_Data_Port(byte[] data, String hostname, int port)
+        {
+            var sendBytesCount = 0;
+            var maxSend = data_socket.Client.SendBufferSize-128;
+            byte[] sendBuffer = new byte[maxSend];
+            int frames = data.Length / maxSend + 1;
+            var pos = 0;
+            try
+            {
+                for (pos = 0; pos < data.Length; pos += maxSend)
+                {
+                    // In this frame, send n bytes
+                    if (data.Length - pos  > maxSend)
+                        sendBytesCount = maxSend;
+                    else
+                        sendBytesCount = data.Length - pos;
+
+                    Buffer.BlockCopy(data, pos, sendBuffer, 0, sendBytesCount);
+
+                    data_socket.Send(sendBuffer, sendBytesCount, hostname, port);
+                }
+
+                //data_socket.Send(data, data.Length, hostname, port);
+            }
+            catch (Exception ex)
+            {
+
+                throw ex;
+            }
+
+
         }
 
         /// <summary>
