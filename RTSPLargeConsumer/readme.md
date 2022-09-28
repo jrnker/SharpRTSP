@@ -19,13 +19,16 @@ The settings file is recreated as below if non existent.
 ```// File that descibes what to consume
 // File that descibes what to consume
 
-// Consume one of the following URL
+// Consume one of the following URL, in 240*160 24fps
 rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4
 
-// Consume 5 of the following URL
+// Consume 5 of the following URL, note the | separator at the end
 rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4|5
 
-// This gets a total of 6 streams to consume
+// Consume 2 of the following URL, in 320*240 30fps
+rtsp://rtsp.stream/pattern|2
+
+// This gets a total of 8 streams to consume
 ```
 
 ### How to run
