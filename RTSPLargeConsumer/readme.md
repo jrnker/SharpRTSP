@@ -31,6 +31,13 @@ rtsp://rtsp.stream/pattern|2
 // This gets a total of 8 streams to consume
 ```
 
+### Output colour coding
+
+Green - Connected
+Blue -  Connecting
+Red - Connection failed
+Yellow - Waiting to connect
+
 ### How to run
 
 Well, download and compile maybe?
