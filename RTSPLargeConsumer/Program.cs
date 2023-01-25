@@ -22,8 +22,30 @@ namespace RTSPLargeConsumer
         private static int _lastClientCount;
         private static int _maxWaitingClients = 5;
 
+        private static List<(string, int)> _zeroFpsCameras = new List<(string, int)>();
+        private static bool _detect0fps;
+        private static bool _detectWriteout;
+        private static int _detectionThreashold = 30;
+        private static bool _debugOutput;
+
         static void Main(string[] args)
         {
+            if (args.Any(x => x.StartsWith("/?") || x.StartsWith("-?")))
+            {
+                Console.WriteLine(@"Options:
+-z  Write out 0 fps streams URL's to separate file
+    When a stream has delievered 0 fps for 5 seconds in a row, then it's considered not delivering data.
+-d  Use debug output
+    Shows more detailed information about the stream, but is more limited by screenspace
+");
+                return;
+            }
+
+            if (args.Any(x => x.StartsWith("-z")))
+                _detect0fps = true;
+            if (args.Any(x => x.StartsWith("-d")))
+                _debugOutput = true;
+
             Console.Clear();
 
             // Start a timer that executes once a second and displays fps values
@@ -72,7 +94,12 @@ rtsp://rtsp.stream/pattern|2
                     // Multipe streams from same source
                     for (var n = 0; n < int.Parse(split[1]); n++)
                         launchList.Add(split[0]);
+
+                // Prepare the zero fps list
+                if (_detect0fps)
+                    _zeroFpsCameras.Add((split[0], 0));
             }
+
 
             // Start threads
             foreach (var launchURL in launchList)
@@ -141,6 +168,7 @@ rtsp://rtsp.stream/pattern|2
             // Start at top of screen
             Console.CursorTop = 0;
             Console.CursorLeft = 0;
+            _detectWriteout = false;
 
             // We lock this as the manipulation of the list of clients can't happen when we're drawing fps valuse
             lock (_lock)
@@ -159,6 +187,24 @@ rtsp://rtsp.stream/pattern|2
                     c.workerClass.cntAmr = (int)(c.workerClass.cntAmr / (gap / 1000));
                     c.workerClass.cntAcc = (int)(c.workerClass.cntAcc / (gap / 1000));
                 }
+
+                // Detect zero fps streams
+                if (_detect0fps)
+                    foreach (var c in clients)
+                    {
+
+                        var idx = _zeroFpsCameras.FindIndex(y => y.Item1 == c.workerClass.url);
+                        var v = _zeroFpsCameras[idx];
+                        if (c.workerClass.cntNal == 0)
+                        {
+                            if (_zeroFpsCameras[idx].Item2 == _detectionThreashold - 1)
+                                _detectWriteout = true;
+                            v.Item2 += 1;
+                        }
+                        else
+                            v.Item2 = 0;
+                        _zeroFpsCameras[idx] = v;
+                    }
 
                 // Get some values to display at the top
                 var zeroFpsClients = clients.Count(x => x.workerClass.cntNal == 0);
@@ -184,11 +230,13 @@ rtsp://rtsp.stream/pattern|2
                     if (c.workerClass.client?.GetSocketStatus() == RTSPClient.RTSP_STATUS.Connecting)
                         Console.ForegroundColor = ConsoleColor.Blue;
 
-                    // Screen output that shows all types, takes lots of space, but is good for troubleshooting
-                    //Console.WriteLine($"{c.workerThread.ManagedThreadId.ToString().PadLeft(2, '0')}: H264 {c.workerClass.cntH264} H265 {c.workerClass.cntH265} NAL {c.workerClass.cntNal} G711 {c.workerClass.cntG711} AMR {c.workerClass.cntAmr} AMR {c.workerClass.cntAcc}");
+                    // Screen output that shows all countertypes, takes lots of space, but is good for troubleshooting
+                    if (_debugOutput)
+                        Console.WriteLine($"{c.workerThread.ManagedThreadId.ToString().PadLeft(2, '0')}: H264 {c.workerClass.cntH264} H265 {c.workerClass.cntH265} NAL {c.workerClass.cntNal} G711 {c.workerClass.cntG711} AMR {c.workerClass.cntAmr} AMR {c.workerClass.cntAcc}");
 
                     // We paint each fps value (based on NAL frames) with 2 chars + space
-                    Console.Write($"{c.workerClass.cntNal.ToString().PadLeft(2, '0')} ");
+                    if(!_debugOutput)
+                        Console.Write($"{c.workerClass.cntNal.ToString().PadLeft(2, '0')} ");
 
                     // Then reset the counter on this client
                     c.workerClass.cntH264 = 0;
@@ -199,6 +247,12 @@ rtsp://rtsp.stream/pattern|2
                     c.workerClass.cntAcc = 0;
                 }
                 Monitor.PulseAll(_lock);
+
+                if (_detectWriteout)
+                {
+                    var items = _zeroFpsCameras.Where(x => x.Item2 >= _detectionThreashold).Select(x => x.Item1).ToArray();
+                    File.WriteAllLines(System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + "_zeroFps.txt", items);
+                }
 
                 // Remove clients not alive
                 clients.RemoveAll(x => !x.workerThread.IsAlive);

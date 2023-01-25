@@ -22,7 +22,7 @@ namespace RTSPLargeConsumer
     }
     internal class RTSPworker
     {
-        private string _url;
+        public string url;
         private int _threadId;
         internal int cntH264, cntH265, cntNal, cntG711, cntAmr, cntAcc;
 
@@ -31,7 +31,7 @@ namespace RTSPLargeConsumer
 
         public RTSPworker(string url, CancellationToken cancellationToken)
         {
-            _url = url;
+            this.url = url;
             _cancellationToken = cancellationToken;
         }
         internal void Execute()
@@ -67,7 +67,7 @@ namespace RTSPLargeConsumer
             {
                 do
                 {
-                    client.Connect(_url, RTSPClient.RTP_TRANSPORT.TCP, RTSPClient.MEDIA_REQUEST.VIDEO_AND_AUDIO);
+                    client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, RTSPClient.MEDIA_REQUEST.VIDEO_AND_AUDIO);
                     //client.Play();
 
                     while (!client.StreamingFinished() && !_cancellationToken.IsCancellationRequested)

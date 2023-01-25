@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RTSPLargeConsumer": {
+      "commandName": "Project",
+      "commandLineArgs": "-z -d"
+    }
+  }
+}
